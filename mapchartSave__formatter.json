@@ -1,0 +1,31 @@
+{
+	"groups": {
+		"#cc3333": {
+			"label": "",
+			"paths": [
+				"Kings__NY",
+				"New_York__NY"
+			]
+		}
+	},
+	"title": "",
+	"hidden": [
+
+	],
+	"background": "#ffffff",
+	"borders": "#000000",
+	"legendFont": "Century Gothic",
+	"legendFontColor": "#000000",
+	"legendBgColor": "#00000000",
+	"areBordersShown": true,
+	"defaultColor": "#d1dbdd",
+	"labelsColor": "#000000",
+	"strokeWidth": "medium",
+	"legendPosition": "custom",
+	"legendX": "1296.72",
+	"legendY": "549.18",
+	"legendSize": "medium",
+	"legendStatus": "show",
+	"scalingPatterns": true,
+	"legendRowsSameColor": true
+}
