@@ -1,7 +1,10 @@
-sendAPI = True #Testing the pre-API optimization
 import datetime
+import json
+import requests
+
 timeThresholdMins = 15 #1 min = 60k ms; 1440 mins = 1 day
 distThresholdDegs = 0.015 #0.02 is ~ 1 mile at average coordinates within the US
+
 print('Program started at '+ str(datetime.datetime.now().strftime('%H:%M:%S')))
 
 def runFile():   
@@ -127,13 +130,9 @@ def cleanupCountyNames(countySet):
 
     return cleanCountySet
 
-import json
-import requests
-import datetime
 
 allCounties = runFile() #Will return list of counties
 print('Number of unique US Counties: '+ str(len(allCounties)))
-
 formatOutput(allCounties)
 
 #exec(open("MapchartWebBot.py").read()) #Temporarily tried connecting to a web bot script to learn how that works, but preferrably want to get away from using any existing site in the long term

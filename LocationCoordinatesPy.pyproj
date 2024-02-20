@@ -4,7 +4,7 @@
     <SchemaVersion>2.0</SchemaVersion>
     <ProjectGuid>912cd584-ca94-4560-8832-86125090ce6e</ProjectGuid>
     <ProjectHome>.</ProjectHome>
-    <StartupFile>LocationCoordinatesPy.py</StartupFile>
+    <StartupFile>LocalCountyPlot.py</StartupFile>
     <SearchPath>
     </SearchPath>
     <WorkingDirectory>.</WorkingDirectory>

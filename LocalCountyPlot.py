@@ -2,30 +2,24 @@
 #pip install geopandas matplotlib us
 
 import geopandas as gpd
+import matplotlib.pyplot as plt
 
 # Load the shapefiles
 counties = gpd.read_file('cb_2022_us_county_20m.shp')
-
-# Assuming 'your_list' contains the official county codes
-your_list = ['56041', '56043', '56045']  # Example list
-
 print(counties.columns)
-input("Press Enter to continue...")
+
+sample_list = ['56041', '36027', '36111', '06081']  # Example list
 
 # Filter the counties
-filtered_counties = counties[counties['COUNTYFP'].isin(your_list)]
+state_county_fips = counties['STATEFP']+counties['COUNTYFP']
+filtered_counties = counties[state_county_fips.isin(sample_list)]
+#print(filtered_counties)
 
-import matplotlib.pyplot as plt
+# Get EPSG code of SHP file dynamically to account for other file types
+print(counties.crs) # change this
+filtered_counties = filtered_counties.to_crs(epsg='4269')
 
-# Plot the map
-fig, ax = plt.subplots(1,  1)
-filtered_counties.plot(ax=ax, color='red', linewidth=0.8, edgecolor='0.8')
-
-# Set the title and labels
-ax.set_title('US Counties Map')
-ax.set_axis_off()
-
-# Show the plot
+fig, ax = plt.subplots(figsize=(10,  10))
+filtered_counties.plot(ax=ax, color='lightgrey')
+ax.set_title('Filtered Counties Map')
 plt.show()
-
-plt.savefig('us_counties_map.png')
