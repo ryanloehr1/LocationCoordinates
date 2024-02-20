@@ -1,7 +1,7 @@
 sendAPI = True #Testing the pre-API optimization
 import datetime
-timeThresholdMins = 1440000 #1 min = 60k ms; 1440 mins = 1 day
-distThresholdDegs = 0.05 #0.02 is ~ 1 mile at average coordinates within the US
+timeThresholdMins = 15 #1 min = 60k ms; 1440 mins = 1 day
+distThresholdDegs = 0.015 #0.02 is ~ 1 mile at average coordinates within the US
 print('Program started at '+ str(datetime.datetime.now().strftime('%H:%M:%S')))
 
 def runFile():   
@@ -91,7 +91,6 @@ def addDecimal(num, decimal_place):
 
 def getCounty(input):
     try:
-        #print('Found county ' + input['County']['name'].replace(' ', '_') + '__' +input['State']['code'])
         return input['County']['name'].replace(' ', '_') + '__' +input['State']['code']
     except:
         #print('Coordinates not matching a US county')
@@ -137,7 +136,7 @@ print('Number of unique US Counties: '+ str(len(allCounties)))
 
 formatOutput(allCounties)
 
-#exec(open("MapchartWebBot.py").read())
+#exec(open("MapchartWebBot.py").read()) #Temporarily tried connecting to a web bot script to learn how that works, but preferrably want to get away from using any existing site in the long term
 
 
 
@@ -155,7 +154,6 @@ formatOutput(allCounties)
 #DONE - Verify success, throw away errors (maybe log them for a bit first)
 #DONE - Create blank array for county+state. Check if county.name + state.name combination already present, if not push
 #DONE - Look into array alternatives (numPy arrays for example) to increase performance. Just using sets
-
 
 #LATER
 #Add previous pre-2017 counties in a JSON (have them color-coded separate)
