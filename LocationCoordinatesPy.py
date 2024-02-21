@@ -2,14 +2,16 @@ import datetime
 import json
 import requests
 
-timeThresholdMins = 15 #1 min = 60k ms; 1440 mins = 1 day
-distThresholdDegs = 0.015 #0.02 is ~ 1 mile at average coordinates within the US
+FIPS_run = True
+
+timeThresholdMins = 60 #1 min = 60k ms; 1440 mins = 1 day
+distThresholdDegs = 0.02 #0.02 is ~ 1 mile at average coordinates within the US
 
 print('Program started at '+ str(datetime.datetime.now().strftime('%H:%M:%S')))
 
-def runFile():   
+def runFile(input_file):
     #with open('Mini_sample_data.json', 'r') as file:
-    with open('Records.json', 'r') as file:
+    with open(input_file, 'r') as file:
         data = json.load(file)
     print('File loaded at '+ str(datetime.datetime.now().strftime('%H:%M:%S')))
     return getResponse(data)
@@ -34,24 +36,19 @@ def getResponse(data):
             monthYear = latestTime.strftime('%B %Y')
             print (monthYear)
         
-        #print('Lat: '+str(lat)+ '  Long: '+str(long))
         if ((abs(lat - previousLat) < distThresholdDegs) or (abs(long - previousLong) < distThresholdDegs)):
             continue
         #print('Distance Threshold Surpassed')
 
-        latestTime = int(latestTime.timestamp()) #Try flipping the order of the time and location thresholds to see which one is faster to compute, and run that first
+        latestTime = int(latestTime.timestamp()) #Running distance calculation first because of time to compute
         if ((latestTime - previousTime) < (timeThresholdMins * 60)):
             continue 
         #print('Threshold surpassed at timestamp '+ str(datetime.datetime.fromtimestamp(latestTime/1000.0)))
-        #print('')
 
         previousTime = latestTime
         previousLat = lat
         previousLong = long
         
-        if sendAPI is False:
-            APISuccessful += 1
-            continue
         try:
             url = f"https://geo.fcc.gov/api/census/block/find?latitude={lat}&longitude={long}&censusYear=2020&showall=true&format=json"
             response = requests.get(url)
@@ -94,7 +91,10 @@ def addDecimal(num, decimal_place):
 
 def getCounty(input):
     try:
-        return input['County']['name'].replace(' ', '_') + '__' +input['State']['code']
+        if (FIPS_run):
+            return input['County']['FIPS']
+        else:
+            return input['County']['name'].replace(' ', '_') + '__' +input['State']['code']
     except:
         #print('Coordinates not matching a US county')
         return None
@@ -131,12 +131,16 @@ def cleanupCountyNames(countySet):
     return cleanCountySet
 
 
-allCounties = runFile() #Will return list of counties
+allCounties = runFile('Records.json') #Will return list of counties
 print('Number of unique US Counties: '+ str(len(allCounties)))
-formatOutput(allCounties)
 
-#exec(open("MapchartWebBot.py").read()) #Temporarily tried connecting to a web bot script to learn how that works, but preferrably want to get away from using any existing site in the long term
-
+if FIPS_run:
+    print(allCounties)
+else:
+    formatOutput(allCounties)
+    
+plotVars = {'allCounties': allCounties}
+exec(open('LocalCountyPlot.py').read(), plotVars) #Logic handled in separate file to generate map, allowing both local or new plots
 
 
 
@@ -156,14 +160,13 @@ formatOutput(allCounties)
 
 #LATER
 #Add previous pre-2017 counties in a JSON (have them color-coded separate)
-#DONE - Format the output file
 #Look into color options based on timeframe (going to be hard if using sets)
+##As of Fall 2023, Google Takout changed their output files to now be separatable by year or month, so now an easier possibility.
+##Could even parse one file at a time and start generating the map image real time
 #Clean out one-off locations (flying or location spoofing) from Google Maps directly
-#Save the webpage for https://www.mapchart.net/usa-counties.html locally
 #Research options with https://public.opendatasoft.com/explore/dataset/georef-united-states-of-america-county/api/?flg=en-us&disjunctive.ste_code&disjunctive.ste_name&disjunctive.coty_code&disjunctive.coty_name&sort=year&location=6,35.49646,-82.88086&basemap=jawg.light
 
 #WAY LATER
 #Auto-download my google takout file to my local storage (or a web server)
 #Automate the running of this program
-#Open the website and upload the response file automatically
 #Send the result to my email monthly

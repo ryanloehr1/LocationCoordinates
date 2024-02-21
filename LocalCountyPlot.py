@@ -12,7 +12,7 @@ def plotCounties(counties, projection= None):
     if projection == None:
         projection = str(counties.crs).replace("EPSG:","") #if no projection defined, default to layout listed as "CRS" in the SHP file
     state_county_fips = counties['STATEFP']+counties['COUNTYFP']
-    visited_counties = counties[state_county_fips.isin(sample_list)]
+    visited_counties = counties[state_county_fips.isin(county_list)]
     #print(filtered_counties)
     visited_counties = visited_counties.to_crs(epsg=projection)
 
@@ -22,8 +22,12 @@ def plotCounties(counties, projection= None):
     ax.set_title('Filtered Counties Map')
     plt.show()
 
-sample_list = {'34039', '35015', '44007', '15009', '06075', '25027', '54061', '34003', '25013', '25021', '36021', '06085', '36119', '55039', '01127', '24033', '53067', '36071', '16001', '36087', '25025', '36111', '11001', '36081', '06077', '48453', '06073', '09001', '08123', '02122', '36061', '06037', '50015', '36027', '49055', '08013', '08117', '32003', '06081', '15001', '51013', '08089', '53011', '24003', '24005', '12011', '47037', '06001', '36039', '25005', '17031', '23011', '25009', '09003', '36047', '12086', '08031', '42003', '34013', '27123', '53033', '24015', '51059', '04005', '24027', '36079'}  # Example list
-#{'08031', '06001', '06085', '34005', '06017', '11001', '36079', '06075', '09011', '55097', '55059', '36027', '08015', '36081', '25025', '51059'}
+local_list = {'34039', '35015', '44007', '15009', '06075', '25027', '54061', '34003', '25013', '25021', '36021', '06085', '36119', '55039', '01127', '24033', '53067', '36071', '16001', '36087', '25025', '36111', '11001', '36081', '06077', '48453', '06073', '09001', '08123', '02122', '36061', '06037', '50015', '36027', '49055', '08013', '08117', '32003', '06081', '15001', '51013', '08089', '53011', '24003', '24005', '12011', '47037', '06001', '36039', '25005', '17031', '23011', '25009', '09003', '36047', '12086', '08031', '42003', '34013', '27123', '53033', '24015', '51059', '04005', '24027', '36079'}
+
+if 'allCounties' in locals(): #allows for counties to be passed in from another python script, but default to a sample list if not
+    county_list = allCounties
+else:
+    county_list = local_list
 
 shapefile = 'cb_2022_us_county_20m.shp'
 counties = loadShapeFile(shapefile)
