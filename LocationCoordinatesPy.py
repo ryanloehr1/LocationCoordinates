@@ -4,8 +4,8 @@ import requests
 
 FIPS_run = True
 
-timeThresholdMins = 60 #1 min = 60k ms; 1440 mins = 1 day
-distThresholdDegs = 0.02 #0.02 is ~ 1 mile at average coordinates within the US
+timeThresholdMins = 10 #1 min = 60k ms; 1440 mins = 1 day
+distThresholdDegs = 0.01 #0.02 is ~ 1 mile at average coordinates within the US
 
 print('Program started at '+ str(datetime.datetime.now().strftime('%H:%M:%S')))
 
