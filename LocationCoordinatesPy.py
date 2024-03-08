@@ -145,8 +145,6 @@ else:
     
 plotVars = {'allCounties': allCounties}
 exec(open('LocalCountyPlot.py').read(), plotVars) #Logic handled in separate file to generate map, allowing both local or new plots
-#HOLD - Really rough boundaries for US-only calls. Longitude < -70e7. Latitude between 20e7 and 70e7
-#HOLD - Really rough boundaries for US-only calls. Longitude < -70e7. Latitude between 20e7 and 70e7
 
 
 #TODO
