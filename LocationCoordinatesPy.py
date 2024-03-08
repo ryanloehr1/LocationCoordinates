@@ -2,17 +2,22 @@ import datetime
 import json
 import requests
 
-timeThresholdMins = 15 #1 min = 60k ms; 1440 mins = 1 day
-distThresholdDegs = .01 #0.02 is ~ 1 mile at average coordinates within the US
+FIPS_run = True
 
-print('Program started at '+ str(datetime.datetime.now().strftime('%H:%M:%S')))
+timeThresholdMins = 14400 #1 min = 60k ms; 1440 mins = 1 day
+distThresholdDegs = 0.2 #0.02 is ~ 1 mile at average coordinates within the US
 
-def runFile():   
-    #with open('Mini_sample_data.json', 'r') as file:
-    with open('Records.json', 'r') as file:
-        data = json.load(file)
-    print('File loaded at '+ str(datetime.datetime.now().strftime('%H:%M:%S')))
-    return getResponse(data)
+print('Welcome! Your location coordinate files are currently loading. This program has started at '+ str(datetime.datetime.now().strftime('%H:%M:%S')))
+
+def runFile(input_file):
+    try:
+        #with open('Mini_sample_data.json', 'r') as file:
+        with open(input_file, 'r') as file:
+            data = json.load(file)
+        print('File loaded successfully '+ str(datetime.datetime.now().strftime('%H:%M:%S')))
+        return getResponse(data)
+    except IOError:
+        print('Could not find a file titled '+input_file + ' - Please verify file name and location and try again')
     
 def getResponse(data):
     APISuccessful, APIFailure = 0, 0
@@ -34,16 +39,14 @@ def getResponse(data):
             monthYear = latestTime.strftime('%B %Y')
             print (monthYear)
         
-        #print('Lat: '+str(lat)+ '  Long: '+str(long))
         if ((abs(lat - previousLat) < distThresholdDegs) or (abs(long - previousLong) < distThresholdDegs)):
             continue
         #print('Distance Threshold Surpassed')
 
-        latestTime = int(latestTime.timestamp()) #Try flipping the order of the time and location thresholds to see which one is faster to compute, and run that first
+        latestTime = int(latestTime.timestamp()) #Running distance calculation first because of time to compute
         if ((latestTime - previousTime) < (timeThresholdMins * 60)):
             continue 
         #print('Threshold surpassed at timestamp '+ str(datetime.datetime.fromtimestamp(latestTime/1000.0)))
-        #print('')
 
         previousTime = latestTime
         previousLat = lat
@@ -91,7 +94,10 @@ def addDecimal(num, decimal_place):
 
 def getCounty(input):
     try:
-        return input['County']['name'].replace(' ', '_') + '__' +input['State']['code']
+        if (FIPS_run):
+            return input['County']['FIPS']
+        else:
+            return input['County']['name'].replace(' ', '_') + '__' +input['State']['code']
     except:
         #print('Coordinates not matching a US county')
         return None
@@ -128,39 +134,32 @@ def cleanupCountyNames(countySet):
     return cleanCountySet
 
 
-allCounties = runFile() #Will return list of counties
+allCounties = runFile('Records.json') #Will return list of counties
 print('Number of unique US Counties: '+ str(len(allCounties)))
-formatOutput(allCounties)
 
-#exec(open("MapchartWebBot.py").read()) #Temporarily tried connecting to a web bot script to learn how that works, but preferrably want to get away from using any existing site in the long term
-
-
-
-
-#TODO - PreAPI Call
-#Degree threshold to round and decrease the number of API calls, Run as an OR with the time threshold
-#DONE - Skip threshold based to decrease duplicates (maybe leverage the timestampMs field for locations under ~30 mins apart)
-#DONE - Timestamp each of the sessions for update
+if FIPS_run:
+    #print(allCounties)
+    print()
+else:
+    formatOutput(allCounties)
+    
+plotVars = {'allCounties': allCounties}
+exec(open('LocalCountyPlot.py').read(), plotVars) #Logic handled in separate file to generate map, allowing both local or new plots
+#HOLD - Really rough boundaries for US-only calls. Longitude < -70e7. Latitude between 20e7 and 70e7
 #HOLD - Really rough boundaries for US-only calls. Longitude < -70e7. Latitude between 20e7 and 70e7
 
-#TODO - PostAPI Call
-#IN PROGRESS - Review for mismatched county names and add to known exceptions file. Convert API counties to exceptions if they exist
-#IN PROGRESS - Review keywords to remove, such as 'county', 'borough', 'municipality'
-#DONE - Convert non-alphanumeric characters to underscores (St. Louis, Prince George's, Miami-Dade)
-#DONE - Verify success, throw away errors (maybe log them for a bit first)
-#DONE - Create blank array for county+state. Check if county.name + state.name combination already present, if not push
-#DONE - Look into array alternatives (numPy arrays for example) to increase performance. Just using sets
 
-#LATER
-#Add previous pre-2017 counties in a JSON (have them color-coded separate)
-#DONE - Format the output file
-#Look into color options based on timeframe (going to be hard if using sets)
+#TODO
 #Clean out one-off locations (flying or location spoofing) from Google Maps directly
-#Save the webpage for https://www.mapchart.net/usa-counties.html locally
-#Research options with https://public.opendatasoft.com/explore/dataset/georef-united-states-of-america-county/api/?flg=en-us&disjunctive.ste_code&disjunctive.ste_name&disjunctive.coty_code&disjunctive.coty_name&sort=year&location=6,35.49646,-82.88086&basemap=jawg.light
+#Determine options for mapping pre-2017 counties (Prior to Google Timeline History being logged)
+#Create separate versions for US (by county) and international (by regions TBD)
+
+#OPTIONS
+#Look at options for color-coding map based on timeframe of when first/last visied
+##As of Fall 2023, Google Takeout changed their output files to be separated by year or month, so this is an easy possibility
+##Could even load one file at a time and start refreshing the map real time by month for better UX
+#Look at options for color-coding based on frequency of counties visited. Need to differentiate by time versus number of responses. May majorly increase runtime
 
 #WAY LATER
-#Auto-download my google takout file to my local storage (or a web server)
-#Automate the running of this program
-#Open the website and upload the response file automatically
-#Send the result to my email monthly
+#Auto-download my google takout file to cloud storage
+#Automate the running of this program and send the result to my email monthly
