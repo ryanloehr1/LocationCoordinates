@@ -5,3 +5,5 @@ Mini_sample_data_cleanup.JSON
 Records.json
 .vs
 /OutputTemplate.txt
+/.vs/LocationCoordinates/v17/.wsuo
+/.gitignore
