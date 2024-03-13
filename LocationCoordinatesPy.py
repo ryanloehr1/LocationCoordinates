@@ -1,8 +1,12 @@
 import datetime
 import json
 import requests
+import os
+import glob
 
 FIPS_run = True
+runType = 'semantic' #Options: 'semantic' (New Google Timeline Option Fall 2023 for month-by-month breakdown) or 'legacy' (Entire timeline in one bulk JSON file)
+refresh_interval = 'monthly' #Options: 'monthly' or 'yearly'
 
 timeThresholdMins = 14400 #1 min = 60k ms; 1440 mins = 1 day
 distThresholdDegs = 0.2 #0.02 is ~ 1 mile at average coordinates within the US
@@ -10,14 +14,37 @@ distThresholdDegs = 0.2 #0.02 is ~ 1 mile at average coordinates within the US
 print('Welcome! Your location coordinate files are currently loading. This program has started at '+ str(datetime.datetime.now().strftime('%H:%M:%S')))
 
 def runFile(input_file):
+    print(f"Processing file: {input_file}")
     try:
-        #with open('Mini_sample_data.json', 'r') as file:
-        with open(input_file, 'r') as file:
+        with open(input_file, 'r', encoding="utf-8") as file:
             data = json.load(file)
         print('File loaded successfully '+ str(datetime.datetime.now().strftime('%H:%M:%S')))
         return getResponse(data)
     except IOError:
         print('Could not find a file titled '+input_file + ' - Please verify file name and location and try again')
+        
+def loadMainFolderFile(base_path):
+    if (runType == 'legacy'):
+        runFile('Records.json')
+    elif (runType == 'semantic'):
+        semantic_history_path = os.path.join(base_path, 'Semantic Location History')
+        directories = [d for d in os.listdir(semantic_history_path) if os.path.isdir(os.path.join(semantic_history_path, d))]
+        year_folders = [d for d in directories if d.isdigit()]
+        year_folders.sort()
+        for year in year_folders:
+            year_path = os.path.join(semantic_history_path, year)
+            month_files = glob.glob(os.path.join(year_path, "*.json"))
+            month_files.sort(key=extractMonthFromPath)
+            for month_file in month_files:
+                monthly_return = runFile(month_file)
+                plotVars = {'allCounties': monthly_return}
+                exec(open('LocalCountyPlot.py').read(), plotVars)
+    else:
+        print('Run type not properly defined. Please set to \'semantic\' or \'legacy\'')  
+
+def extractMonthFromPath(path):
+    month_extract = path.split('\\')[-1].split('_')[1].split('.')[0] #Pull the last file from the path, get the MONTH
+    return datetime.datetime.strptime(month_extract, '%B')
     
 def getResponse(data):
     APISuccessful, APIFailure = 0, 0
@@ -25,57 +52,67 @@ def getResponse(data):
     monthYear = None
     counties = set()
     status_codes = set()
-    for item in data['locations']:
-        lat = item['latitudeE7']
-        long = item['longitudeE7']
-        lat = addDecimal(lat, 7)
-        long = addDecimal(long, 7)
+    #for item in data['locations']:
+    for place in data['timelineObjects']:
+        if 'placeVisit' in place:
+            try:
+                lat = place['placeVisit']['location']['latitudeE7']
+                #lat = item['latitudeE7']
+                long = place['placeVisit']['location']['longitudeE7']
+                #long = item['longitudeE7']
+                lat = addDecimal(lat, 7)
+                long = addDecimal(long, 7)
+            except:
+                #print(place['placeVisit'])
+                continue
         
-        try: #Because sometimes there's milliseconds, and sometimes there isn't
-            latestTime = datetime.datetime.strptime(item['timestamp'], "%Y-%m-%dT%H:%M:%S.%fZ")
-        except:
-            latestTime = datetime.datetime.strptime(item['timestamp'], "%Y-%m-%dT%H:%M:%SZ")
-        if (monthYear != (latestTime.strftime('%B %Y'))):
-            monthYear = latestTime.strftime('%B %Y')
-            print (monthYear)
+            try: #Because sometimes there's milliseconds, and sometimes there isn't
+                #latestTime = datetime.datetime.strptime(place['timestamp'], "%Y-%m-%dT%H:%M:%S.%fZ")
+                latestTime = datetime.datetime.strptime(place['placeVisit']['duration']['startTimestamp'], "%Y-%m-%dT%H:%M:%S.%fZ")
+            except:
+                #latestTime = datetime.datetime.strptime(place['timestamp'], "%Y-%m-%dT%H:%M:%SZ")
+                latestTime = datetime.datetime.strptime(place['placeVisit']['duration']['startTimestamp'], "%Y-%m-%dT%H:%M:%SZ")
+            if (monthYear != (latestTime.strftime('%B %Y'))):
+                monthYear = latestTime.strftime('%B %Y')
+                print (monthYear)
         
-        if ((abs(lat - previousLat) < distThresholdDegs) or (abs(long - previousLong) < distThresholdDegs)):
-            continue
-        #print('Distance Threshold Surpassed')
+            if ((abs(lat - previousLat) < distThresholdDegs) or (abs(long - previousLong) < distThresholdDegs)):
+                continue
+            #print('Distance Threshold Surpassed')
 
-        latestTime = int(latestTime.timestamp()) #Running distance calculation first because of time to compute
-        if ((latestTime - previousTime) < (timeThresholdMins * 60)):
-            continue 
-        #print('Threshold surpassed at timestamp '+ str(datetime.datetime.fromtimestamp(latestTime/1000.0)))
+            latestTime = int(latestTime.timestamp()) #Running distance calculation first because of time to compute
+            if ((latestTime - previousTime) < (timeThresholdMins * 60)):
+                continue 
+            #print('Threshold surpassed at timestamp '+ str(datetime.datetime.fromtimestamp(latestTime/1000.0)))
 
-        previousTime = latestTime
-        previousLat = lat
-        previousLong = long
+            previousTime = latestTime
+            previousLat = lat
+            previousLong = long
         
-        try:
-            url = f"https://geo.fcc.gov/api/census/block/find?latitude={lat}&longitude={long}&censusYear=2020&showall=true&format=json"
-            response = requests.get(url)
-            response.raise_for_status()
-            response_data = response.json()
-            APISuccessful += 1
+            try:
+                url = f"https://geo.fcc.gov/api/census/block/find?latitude={lat}&longitude={long}&censusYear=2020&showall=true&format=json"
+                response = requests.get(url)
+                response.raise_for_status()
+                response_data = response.json()
+                APISuccessful += 1
     
-            county = getCounty(response_data)
-            if county == None:
-                continue    
-            if county not in counties:
-                counties.add(county)
-                print('*** County added to list: ' +county + ' ***')
-        except requests.HTTPError as ex:
-            #print('Error with response: '+ str(ex))
-            status_codes.add(response.status_code)
-            APIFailure += 1
-        except requests.Timeout:
-            status_codes.add(response.status_code)
-            print('Request Timeout for item '+ str(item))
-            APIFailure += 1
-    print('API load finished at '+ str(datetime.datetime.now().strftime('%H:%M:%S')))
-    print('API called '+ str(APISuccessful)+ ' times')
-    print('API failed '+ str(APIFailure)+ ' times')
+                county = getCounty(response_data)
+                if county == None:
+                    continue    
+                if county not in counties:
+                    counties.add(county)
+                    print('*** County added to list: ' +county + ' ***')
+            except requests.HTTPError as ex:
+                #print('Error with response: '+ str(ex))
+                status_codes.add(response.status_code)
+                APIFailure += 1
+            except requests.Timeout:
+                status_codes.add(response.status_code)
+                print('Request Timeout for item '+ str(place))
+                APIFailure += 1
+    #print('API load finished at '+ str(datetime.datetime.now().strftime('%H:%M:%S')))
+    #print('API called '+ str(APISuccessful)+ ' times')
+    #print('API failed '+ str(APIFailure)+ ' times')
     if (len(status_codes) > 0):
         print('Encountered error codes: '+str(status_codes))
     return counties
@@ -133,6 +170,9 @@ def cleanupCountyNames(countySet):
 
     return cleanCountySet
 
+
+base_path = 'Location History (Timeline)'
+loadMainFolderFile(base_path)
 
 allCounties = runFile('Records.json') #Will return list of counties
 print('Number of unique US Counties: '+ str(len(allCounties)))
