@@ -9,3 +9,4 @@ Records.json
 /.vs/slnx.sqlite
 LocationHistory (Timeline)/
 /Location History (Timeline)
+/__pycache__

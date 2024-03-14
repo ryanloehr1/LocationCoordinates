@@ -1,14 +1,19 @@
 import datetime
 import json
+from threading import local
 import requests
 import os
 import glob
+
+import LocalCountyPlot
+
+shapefile = 'cb_2022_us_county_20m.shp'
 
 FIPS_run = True
 runType = 'semantic' #Options: 'semantic' (New Google Timeline Option Fall 2023 for month-by-month breakdown) or 'legacy' (Entire timeline in one bulk JSON file)
 refresh_interval = 'monthly' #Options: 'monthly' or 'yearly'
 
-timeThresholdMins = 14400 #1 min = 60k ms; 1440 mins = 1 day
+timeThresholdMins = 120 #1 min = 60k ms; 1440 mins = 1 day
 distThresholdDegs = 0.2 #0.02 is ~ 1 mile at average coordinates within the US
 
 print('Welcome! Your location coordinate files are currently loading. This program has started at '+ str(datetime.datetime.now().strftime('%H:%M:%S')))
@@ -38,7 +43,8 @@ def loadMainFolderFile(base_path):
             for month_file in month_files:
                 monthly_return = runFile(month_file)
                 plotVars = {'allCounties': monthly_return}
-                exec(open('LocalCountyPlot.py').read(), plotVars)
+                LocalCountyPlot.plotCounties(county_map, monthly_return, 5070)
+                #exec(open('LocalCountyPlot.py').read(), plotVars)
     else:
         print('Run type not properly defined. Please set to \'semantic\' or \'legacy\'')  
 
@@ -171,11 +177,13 @@ def cleanupCountyNames(countySet):
     return cleanCountySet
 
 
+county_map = LocalCountyPlot.loadShapeFile(shapefile)
 base_path = 'Location History (Timeline)'
 loadMainFolderFile(base_path)
 
-allCounties = runFile('Records.json') #Will return list of counties
-print('Number of unique US Counties: '+ str(len(allCounties)))
+#allCounties = runFile('Records.json') #Will return list of counties
+#print('Number of unique US Counties: '+ str(len(allCounties)))
+
 
 if FIPS_run:
     #print(allCounties)
@@ -183,11 +191,12 @@ if FIPS_run:
 else:
     formatOutput(allCounties)
     
-plotVars = {'allCounties': allCounties}
-exec(open('LocalCountyPlot.py').read(), plotVars) #Logic handled in separate file to generate map, allowing both local or new plots
+#plotVars = {'allCounties': allCounties}
+#exec(open('LocalCountyPlot.py').read(), plotVars) #Logic handled in separate file to generate map, allowing both local or new plots
 
 
 #TODO
+#Output to user the new regions (States?) visited that interval/month in a list on the figure
 #Clean out one-off locations (flying or location spoofing) from Google Maps directly
 #Determine options for mapping pre-2017 counties (Prior to Google Timeline History being logged)
 #Create separate versions for US (by county) and international (by regions TBD)

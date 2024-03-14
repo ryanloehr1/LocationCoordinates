@@ -8,32 +8,42 @@ def loadShapeFile(file_name): #Loading the Shape File is time-consuming. Need to
     return file
 
 # Filter the counties
-def plotCounties(county_map, county_list, projection= None):
-    if projection == None:
-        projection = str(county_map.crs).replace("EPSG:","") #if no projection defined, default to layout listed as "CRS" in the SHP file
+def plotCounties(county_map, county_list, projection= None):    
+    
+    if not plt.get_fignums(): #If figure does not yet exist, load the shape file and initialize the plot
+        plt.ion() #Pyplot interactive mode
+        #county_map_loaded = loadShapeFile(county_map)
+        fig, ax = plt.subplots(figsize=(10, 10))
+    else:
+        fig = plt.gcf()
+        ax = fig.gca()
+    plt.show(block=False)
+    
+    #Trying some cropping to show just the lower 48 states
+    #ax.set_xlim([-125, -66]) # Longitude limits
+    #ax.set_ylim([20, 50])     # Latitude limits
+        
+    if projection == None: #If no projection defined, default to layout listed as "CRS" in the SHP file
+        projection = str(county_map.crs).replace("EPSG:","")
+        
     state_county_fips = county_map['STATEFP']+county_map['COUNTYFP']
     visited_counties = county_map[state_county_fips.isin(county_list)]
     visited_counties = visited_counties.to_crs(epsg=projection)
-
-    plt.ion() #Pyplot interactive mode
-    fig, ax = plt.subplots(figsize=(10, 10))
-    plt.show(block=False)
-    #while True: #Figure out how to check if main program is still running, and only continue this then
-    ax.clear() #Clear out the existing plot and update anew
-    #fig, ax = plt.subplots(figsize=(10,  10))
-    county_map.to_crs(epsg=projection).plot(ax=ax, color='lightgrey', alpha=0.5)  # Plot all counties for an outline
+    
+    #ax.clear() #Clear out the existing plot and update anew
+    county_map.to_crs(epsg=projection).plot(ax=ax, color='lightgrey', alpha=0.08)  # Plot all counties for an outline
     visited_counties.plot(ax=ax, color='red', alpha=1)  # Highlight visited counties on top
     ax.set_title('Visited US Counties')
     plt.axis('off') #Removes ticks and gridlines
     #plt.show()
     plt.draw()
-    plt.pause(3)
-    
+    plt.pause(0.05)
 
 def get_default_epsg(input_file):
     return str(input_file.crs).replace("EPSG:","")  
 
 def get_epsg_format(epsg_min, epsg_max):
+    return 3857 #To play with cropping to lower 48
     return 5070 #Just for ease of testing connection to main file
     print("A shape format must be determined for the output map. Common examples include:")
     for key, text in epsg_options.items():
@@ -73,9 +83,8 @@ shapefile = 'cb_2022_us_county_20m.shp'
 county_map = loadShapeFile(shapefile)
 
 epsg_format = get_epsg_format(1024, 32767) #Maximum and minimum EPSG range per standards
-print(f"EPSG File format for your map: {epsg_format}")
+#print(f"EPSG File format for your map: {epsg_format}")
 
 plotCounties(county_map, local_list1, epsg_format)
-plotCounties(county_map, local_list2, epsg_format)
-plotCounties(county_map, local_list, epsg_format)
-#plotCounties(county_map, county_list, epsg_format)
+#plotCounties(county_map, local_list2, epsg_format)
+#https://www.phind.com/search?cache=hlwiyykxp8nx0ltbazpju2mx 
