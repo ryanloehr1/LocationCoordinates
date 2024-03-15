@@ -1,6 +1,5 @@
 import datetime
 import json
-from threading import local
 import requests
 import os
 import glob
@@ -13,8 +12,8 @@ FIPS_run = True
 runType = 'semantic' #Options: 'semantic' (New Google Timeline Option Fall 2023 for month-by-month breakdown) or 'legacy' (Entire timeline in one bulk JSON file)
 refresh_interval = 'monthly' #Options: 'monthly' or 'yearly'
 
-timeThresholdMins = 120 #1 min = 60k ms; 1440 mins = 1 day
-distThresholdDegs = 0.2 #0.02 is ~ 1 mile at average coordinates within the US
+timeThresholdMins = 20 #1 min = 60k ms; 1440 mins = 1 day
+distThresholdDegs = 0.04 #0.02 is ~ 1 mile at average coordinates within the US
 
 print('Welcome! Your location coordinate files are currently loading. This program has started at '+ str(datetime.datetime.now().strftime('%H:%M:%S')))
 
@@ -39,24 +38,30 @@ def loadMainFolderFile(base_path):
         for year in year_folders:
             year_path = os.path.join(semantic_history_path, year)
             month_files = glob.glob(os.path.join(year_path, "*.json"))
-            month_files.sort(key=extractMonthFromPath)
+            month_files.sort(key=sortMonthFiles)
             for month_file in month_files:
-                monthly_return = runFile(month_file)
-                plotVars = {'allCounties': monthly_return}
-                LocalCountyPlot.plotCounties(county_map, monthly_return, 5070)
-                #exec(open('LocalCountyPlot.py').read(), plotVars)
+                monthly_counties, monthly_states = runFile(month_file)
+                plot_data = {'title': str('US Counties Visited: '+ extractMonthFromPath(month_file)[0] + ' '+ extractMonthFromPath(month_file)[1]),
+                             'refresh_info': str(monthly_states),
+                             'epsg_format': 5070
+                    }
+                LocalCountyPlot.plotCounties(county_map, monthly_counties, plot_data)
     else:
-        print('Run type not properly defined. Please set to \'semantic\' or \'legacy\'')  
+        print('Run type not properly defined. Please set to \'semantic\' or \'legacy\'')
 
-def extractMonthFromPath(path):
-    month_extract = path.split('\\')[-1].split('_')[1].split('.')[0] #Pull the last file from the path, get the MONTH
+def sortMonthFiles(path):#This is Windows OS specific, for now
+    month_extract = extractMonthFromPath(path)[0]
     return datetime.datetime.strptime(month_extract, '%B')
-    
+
+def extractMonthFromPath(path): #This is Windows OS specific, for now
+    return path.split('\\')[-1].split('_')[1].split('.')[0], path.split('\\')[-1].split('_')[0].split('.')[0] #Pull the Month and Year
+      
 def getResponse(data):
     APISuccessful, APIFailure = 0, 0
     previousTime, previousLat, previousLong = 0, 0, 0
     monthYear = None
     counties = set()
+    states = set()
     status_codes = set()
     #for item in data['locations']:
     for place in data['timelineObjects']:
@@ -102,12 +107,15 @@ def getResponse(data):
                 response_data = response.json()
                 APISuccessful += 1
     
-                county = getCounty(response_data)
+                county, state = getCounty(response_data)
                 if county == None:
                     continue    
                 if county not in counties:
                     counties.add(county)
-                    print('*** County added to list: ' +county + ' ***')
+                    print('County added to list: ' +county)
+                if state not in states:
+                    states.add(state)
+                
             except requests.HTTPError as ex:
                 #print('Error with response: '+ str(ex))
                 status_codes.add(response.status_code)
@@ -121,7 +129,7 @@ def getResponse(data):
     #print('API failed '+ str(APIFailure)+ ' times')
     if (len(status_codes) > 0):
         print('Encountered error codes: '+str(status_codes))
-    return counties
+    return counties, states
 
 def addDecimal(num, decimal_place):
    try:
@@ -138,11 +146,18 @@ def addDecimal(num, decimal_place):
 def getCounty(input):
     try:
         if (FIPS_run):
-            return input['County']['FIPS']
+            return input['County']['FIPS'], input['State']['code']#Two letter state abbreviation
         else:
             return input['County']['name'].replace(' ', '_') + '__' +input['State']['code']
     except:
         #print('Coordinates not matching a US county')
+        return None
+    
+def getState(input): ##maybe just delete this and merge with above
+    try:
+        return input['State']['code'] #Two letter state abbreviation
+    except:
+        #print('Coordinates not matching a US state')
         return None
     
 def formatOutput(countySet):
